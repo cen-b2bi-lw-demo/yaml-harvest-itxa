@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  namespace: tools
+  name: itxa-nfs-claim-common
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 12Gi
+  nfs:
+    server: fsf-wdc0701n-fz.adn.networklayer.com
+    path: /IBM02SEV2112072_156077/data01
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ibmc-file-gold

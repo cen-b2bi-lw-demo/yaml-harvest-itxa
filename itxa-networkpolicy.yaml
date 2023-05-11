@@ -1,0 +1,26 @@
+# Source: ibm-itxa-prod/templates/network-policy.yaml
+# Licensed Materials - Property of IBM
+# IBM Order Management Software (5725-D10)
+# (C) Copyright IBM Corp. 2018, 2020 All Rights Reserved.
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.true
+
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  namespace: tools
+  name: "itxa-network-policy"
+  labels:
+    app.kubernetes.io/name: "release-name-ibm-itxa-prod"
+    helm.sh/chart: "ibm-itxa-prod"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "release-name"
+    release: "release-name"
+    itxa: donotchange
+spec:
+  podSelector:
+    matchExpressions:
+    -  {key: role, operator: In, values: [itxaUI, itxadbinit]}
+  ingress:
+  - from: []
+  policyTypes:
+  - Ingress

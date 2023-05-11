@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: tools
+  name: itxa-nfs-claim
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: ibmc-file-gold
+  volumeName: itxa-nfs-claim-common
+  volumeMode: Filesystem

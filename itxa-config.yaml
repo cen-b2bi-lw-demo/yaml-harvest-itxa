@@ -1,0 +1,396 @@
+# Source: ibm-itxa-prod/templates/itxa-configmap.yaml
+# Licensed Materials - Property of IBM
+# IBM Transformation Extender Advanced (5724-Q23)
+# (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.true
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: tools
+  name: itxa-config
+  labels:
+    app.kubernetes.io/name: "release-name-ibm-itxa-prod"
+    helm.sh/chart: "ibm-itxa-prod"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "release-name"
+    release: "release-name"
+  annotations:
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook": pre-install,pre-upgrade
+data:
+  jvm.options: |-
+    # Licensed Materials - Property of IBM
+    # IBM Transformation Extender Advanced (5724-Q23)
+    # (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
+    # US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+    
+    #Helm ITXA installation directory
+    -DSPE_INSTALL_DIR=/opt/IBM/spe
+    #-D10x.logDebugMessagesToStandardOut=true
+    #-D10x.printStackTracesToStandardErr=true
+    -DSystemStatusInstanceName=SPEUI
+    -Dcom.ibm.jsse2.overrideDefaultTLS=true
+    -Dcom.ibm.jsse2.overrideDefaultProtocol=TLSv12
+    -Djavax.net.ssl.trustStore=/home/default/trustStore.p12
+    -Djavax.net.ssl.trustStoreType=PKCS12
+    -Djavax.net.ssl.keyStore=/opt/ibm/wlp/output/defaultServer/resources/security/key.p12
+    -Djavax.net.ssl.keyStoreType=PKCS12
+    -Xms1024m
+    -Xmx2048m
+  itxa-ui-server.xml: |-
+    <server description="new server">
+        <!--
+          Created using Helm Chart
+          ================================================================
+          == OCO Source Materials
+          == (C) Copyright IBM Corporation 2013 All Rights Reserved.
+          == US Government Users Restricted Rights - Use, duplication or
+          == disclosure restricted by GSA ADP Schedule Contract with
+          == IBM Corporation.
+          ================================================================
+        -->
+        <!-- Enable features -->
+        <featureManager>
+            <feature>jsp-2.2</feature>
+            <feature>jdbc-4.0</feature>
+        <feature>jpa-2.0</feature>
+            <feature>localConnector-1.0</feature>
+        </featureManager>
+    
+        <httpEndpoint id="defaultHttpEndpoint" host="*" httpPort="9080" httpsPort="9443" />
+        <httpSession idReuse="false" cookieName="JSESSIONIDSPE" rewriteId="jsessionidspe" allowOverflow="true" invalidationTimeout="3600"/>
+        <!--DB2-->
+        <dataSource id="tenx" jndiName="jdbc/tenx">
+                <jdbcDriver libraryRef="DB2Lib"/>
+                <properties.db2.jcc  createDatabase="false" databaseName="@databaseName@" password="@dbPassword@" portNumber="@dbPort@" serverName="@dbHostIp@" shutdownDatabase="false" user="@dbUser@"/>
+        </dataSource>
+        <library id="DB2Lib" name="DB2Lib">
+                <fileset dir="${server.config.dir}/apps/spe.war/WEB-INF/lib" includes="db2jcc4.jar"/>
+        </library>
+    
+        <applicationMonitor updateTrigger="mbean"/>
+        <config updateTrigger="disabled"/>
+    
+        <application id="spe" location="spe.war" name="spe" type="war">
+            <classloader>
+                <privateLibrary>
+                    <fileset dir="${server.config.dir}/lib/spe" includes="*.jar"/>
+                    <!--
+                    If you install WTX after you install SPE,
+                    please execute the following steps under the lib dir:
+                    1. Remove the wtx empty dir
+                    2. Create the wtx link as follows:
+                        Windows:    mklink /d wtx \path\to\wtx
+                        UNIX:       ln -sf /path/to/wtx/libs wtx
+                                        @httpPort@
+                    -->
+                    <fileset dir="${server.config.dir}/lib/wtx" includes="*.jar"/>
+                </privateLibrary>
+            </classloader>
+        </application>
+    
+        <logging messageFileName="@POD_HOSTNAME@_messages.log"
+                 traceFileName="@POD_HOSTNAME@_trace.log"
+                 consoleLogLevel="INFO"
+                 copySystemStreams="false"
+                 traceSpecification="*=info:com.ibm.tenx.*=fine:openjpa.jdbc.SQL=fine"/>
+    
+        <!-- RTC#59283 - load the servlet on startup to start sending heart beat events. -->
+        <webContainer deferServletLoad="false"/>
+        <webContainer stopappstartuponlistenerexception="true"/>
+    </server>
+    
+  dbprops.cfg: |-
+    # Licensed Materials - Property of IBM
+    # IBM Transformation Extender Advanced (5724-Q23)
+    # (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
+    # US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+    
+    ####################################################################
+    #openjpa.Log=File=OpenJPA.log, DefaultLevel=WARN, Runtime=INFO, Tool=INFO, SQL=TRACE
+    
+    #Database connection pool setting.
+    #The numbers can be adjusted according to your needs but MaxIdle must be greater than MaxActive.
+    openjpa.ConnectionProperties=MaxActive=200,MaxIdle=250,MinIdle=2,MaxWait=30000
+    #Sample properties for DB2 UDB 9.1 Helm Chart
+    javax.persistence.jdbc.driver=com.ibm.db2.jcc.DB2Driver
+    javax.persistence.jdbc.url=jdbc:db2://@dbHostIp@:@dbPort@/@databaseName@
+    javax.persistence.jdbc.user=@dbUser@
+    javax.persistence.jdbc.password=@dbPassword@
+    jdbc.driver.jar=/opt/IBM/@jdbcDirverJar@
+    
+    #Sample properties for DB2 UDB 9.1
+    #javax.persistence.jdbc.driver=com.ibm.db2.jcc.DB2Driver
+    #javax.persistence.jdbc.url=jdbc:db2://murphy.test.com:50000/spe2
+    #javax.persistence.jdbc.user=db2user
+    #javax.persistence.jdbc.password=db2user
+    
+  uiconfig.properties: |-
+    # Licensed Materials - Property of IBM
+    # IBM Transformation Extender Advanced (5724-Q23)
+    # (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
+    # US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+    ####################################################################
+    
+    ## PROPERTY_FILE_NAME: config.properties
+    ## PROPERTY_FILE_DESCRIPTION
+    ## Sets of properties required to define the SPE persistence API
+    ## This file should not be edited. Override property settings, if needed, using the customer_overrides.properties file.
+    
+    IResource.FILE = com.ibm.spe.core.storage.SPEStorageFS
+    IResource.DOCUMENT = com.ibm.spe.core.storage.SPEStorageDOC
+    IResource.DOC_DATA = com.ibm.spe.core.storage.SPEStorageFS
+    
+    IMapProvider.PROVIDER_KEY = com.ibm.spe.core.maps.SPEMapProvider
+    IEnvelopeProvider.PROVIDER_KEY = com.ibm.spe.core.envelopes.SPEEnvelopeProvider
+    ICodeListProvider.PROVIDER_KEY = com.ibm.spe.core.codelists.SPECodeListProvider
+    IControlNumberProvider.PROVIDER_KEY = com.ibm.spe.core.ctlnumber.SPEControlNumberProvider
+    ISchemaProvider.PROVIDER_KEY = com.ibm.spe.core.schemas.SPESchemaProvider
+    
+    IEventStoreProvider.PROVIDER_KEY = com.ibm.spe.core.events.SPEEventStoreProvider
+    SPEChannelProvider.PROVIDER_KEY = com.ibm.spe.core.jgroups.SPEChannelProvider
+    
+    # Points to the single database property file.
+    DB.Properties=/opt/ibm/wlp/usr/servers/defaultServer/dbprops.cfg
+    
+  customer_overrides.properties: |-
+    # Licensed Materials - Property of IBM
+    # IBM Transformation Extender Advanced (5724-Q23)
+    # (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
+    # US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+    
+    ####################################################################
+    #################################
+    # customer overrides of group properties
+    # groupName.propertyName=override_value
+    #################################
+    # This property is enabled by the spedeploy-packs script if the DTXHOME environment variable is set
+    translator.WTXINSTALLED=true
+    # Uncomment this property if the edi pack version supports setting MaxNumErrors in the configuration file.
+    #translator.WTX_MAX_NUM_ERRORS_ENABLED=true
+    # Uncomment this property if you wish to set a default value for the MaxNumErrors value used in the configuration file for edi compliance checking.
+    #translator.WTX_MAX_NUM_ERRORS=0
+    
+    # This should be uncommented in order to perform SWIFT validation of MT messages using the JVC component.
+    translator.SWIFTValidation=com.ibm.websphere.dtx.ip.swift.srg2021.Validator
+    # Set the SEPA version to support older versions of maps with different input cards.
+    #translator.SEPAVersion=9.0.0
+    
+    # These entries are used to read the compliance maps from the SPE database
+    # The SPE_WORKING_DIR specifies the directory where files used by the compliance maps are located
+    translator.X12MapLocation=ccx12
+    translator.EDIFACTMapLocation=ccedf
+    translator.HIPAAMapLocation=compliance_check
+    translator.framework_driver_map_location=swiftval
+    translator.SEPAMapDirectory=sepadb
+    #spe.SPE_WORKING_DIR=/opt/IBM/StandardsProcessingEngine10.0.1
+    
+    # These can be uncommented to enable WTX logging
+    wtxlogger.wtxlogger.loglevel=DEBUG
+    wtxlogger.wtxlogger.logfilename=/opt/IBM/StandardsProcessingEngine10.0.1/logs/@POD_HOSTNAME@_wtxlogger.log
+    wtxlogger.wtxlogger.target=FILE
+    
+    # These can be uncommented to enable SPE logging
+    spelogger.spelogger.loglevel=DEBUG
+    spelogger.spelogger.logfilename=/opt/IBM/StandardsProcessingEngine10.0.1/logs/@POD_HOSTNAME@_spelogger.log
+    spelogger.spelogger.target=FILE
+    
+    # These can be uncommented to enable SPE system logging
+    systemlogger.systemlogger.loglevel=DEBUG
+    systemlogger.systemlogger.logfilename=/opt/IBM/StandardsProcessingEngine10.0.1/logs/@POD_HOSTNAME@_systemlogger.log
+    systemlogger.systemlogger.target=FILE
+    
+    # These can be uncommented to enable SPE translation logging
+    txlogger.txlogger.loglevel=DEBUG
+    txlogger.txlogger.logfilename=/opt/IBM/StandardsProcessingEngine10.0.1/logs/@POD_HOSTNAME@_txlogger.log
+    txlogger.txlogger.target=FILE
+    
+    # This property can be uncommented to retain documents that are no longer needed in the database.
+    # These include documents related to outbound deferred enveloping and inbound acknowledgment
+    # reconciliation processing where the status of a processed acknowledgment is "Accepted".
+    #spe.purgeDocsMarkedForDelOnCommit=NO
+    # This property can be uncommented if duplicate inbound 997 documents are expected in a cluster environment.
+    # The reconciliation process to update the document state record will be synchronized to prevent optimistic locking issues.
+    #spe.ReconcileACK_sync=true
+    
+    #Logging override entries
+    #spelogger.spelogger.loglevel.allowoverride=YES
+    #txlogger.txlogger.loglevel.allowoverride=YES
+    
+    # Sets the default threshold size that determines whether document
+    # content is returned in the REST job response or stored separately.
+    # The defaults can be individually overridden for each REST job submission.
+    # The defaultInlineDocThreshold is specified in 1k byte increments (i.e. 25 = 25,600 bytes).
+    #REST.API.envelope.defaultInlineDocThreshold=25
+    #REST.API.deenvelope.defaultInlineDocThreshold=25
+    #REST.API.transform.defaultInlineDocThreshold=25
+    #REST.API.ReturnLogsOnError=true
+    
+    # Sets the number of minutes when REST jobs will be automatically deleted after completion.
+    # The default is 2880 minutes (a.k.a 48 hours or 2 days).  Must be a whole number > 0.
+    #REST.JobCleanupMinutes=2880
+    
+    # These properties are used to enable the Control Center event provider.
+    #event.repository.url=http://{host}:58082/sccwebclient/events
+    #event.repository.username={username}
+    #event.repository.password={password}
+    #event.SystemStatusTimerSeconds=300
+    #event.SystemStatusInstanceName=SPE
+    #event.SystemStatusLocale=en_US
+    #event.dir=/opt/IBM/StandardsProcessingEngine10.0.1/ccEventStore
+    #spe.EventProvider=com.ibm.spe.core.events.SPEControlCenterEventProvider
+    #spe.SystemStatusProvider=com.ibm.spe.core.events.SPESystemStatusProvider
+    
+    # Uncomment this override in order to use internal documents in memory for
+    # X12 or EDIFACT transactions instead of documents that use either the file system
+    # or the database.
+    # Use of this property provides a performance boost when the input data being
+    # processed is large, but the individual transactions are small in size.
+    #enveloping.useInternalTransactionDocuments=YES
+    
+    # Uncomment this property to use the original segment count in data when extracting groups for inbound processing.
+    #enveloping.useSegmentCountInDataForExtraction=YES
+    
+    # Uncomment this property in order to turn off caching of in-memory database sequence values for control numbers.
+    # This property can also be used to specify the number in-memory database sequence values that are cached.
+    #enveloping.controlNumberSequenceCacheSize=NOCACHE
+    
+    # Uncomment this property to track database sequence numbers for display in the UI.
+    #enveloping.useControlNumberSequenceTracker=YES
+    # Uncomment this property to customize the sequence tracker interval. By default it is 300000 milliseconds (5 minutes).
+    #enveloping.controlNumberSequenceTrackerInterval=300000
+    
+    # Uncomment this property in order to turn off document storage of created interchanges used in enveloping.
+    #enveloping.disableInterchangeDocumentStorage=YES
+    
+    # Lock Manager settings: Uncomment to change the default values.
+    # Maximum time to wait for acquiring a lock in ms. Default is 2 hours.
+    #enveloping.lockManager.defaultWaitPeriod=7200000
+    # Maximum time a lock may be held in ms. -1 means no timeout (i.e. a lock never times out).
+    #enveloping.lockManager.defaultTimeout=-1
+    # Time for monitor to wait before checking for lock timeouts. Default is 5 minutes.
+    #enveloping.lockManager.defaultMonitorPeriod=300000
+    # Whether or not to check for locks that have been held for too long.
+    #enveloping.lockManager.checkForLockTimeouts=NO
+    # The maximum number of times to attempt to obtain a lock.
+    #enveloping.lockManager.maxLockAttempts=1
+    # Uncomment to have the Lock Monitor remove expired locks.
+    # enveloping.lockManager.checkForLockTimeouts=YES must be set.
+    #enveloping.lockManager.removeExpiredLocks=YES
+    # Uncomment to have the Coordinator self-shutdown when expired locks are detected.
+    # This setting can be used to correct an orphan lock condition.
+    #enveloping.lockManager.shutdownOnExpiredLocks=YES
+    
+    # Uncomment this property if HIPAA compliance checking is being performed and ST control number duplicate/sequence checking
+    # should be restricted to the interchange being processed.
+    #enveloping.CHECK_DUPSEQ_ST_CONTROL_NUMBERS_WITHIN_INTERCHANGE=YES
+    
+    
+  packs.properties: |-
+    #Helm
+    #################################
+    # in order to do any standards based processing
+    # you must specify the supported syntaxes here.
+    #################################
+    # Uncomment this line to support X12 and/or HIPAA
+    #syntax.X12=com.ibm.spe.standards.x12.X12
+    #extractorOrder.X12=2
+    
+    # Uncomment this line to support EDIFACT
+    #syntax.EDIFACT=com.ibm.spe.standards.edifact.EDIFACT
+    #extractorOrder.EDIFACT=1
+    
+    # Uncomment this line to support TRADACOMS
+    #syntax.TRADACOMS=com.ibm.spe.standards.tradacoms.TRADACOMS
+    #extractorOrder.TRADACOMS=3
+    
+    # Uncomment this line to support SWIFT
+    #syntax.SWIFT=com.ibm.spe.standards.swift.SWIFT
+    #extractorOrder.SWIFT=4
+    
+    # Uncomment this line to support RND
+    #syntax.RND=com.ibm.spe.standards.rnd.RND
+    #extractorOrder.RND=5
+    
+    # Uncomment this line to support GenericXML
+    syntax.GenericXML=com.ibm.spe.standards.genericxml.GenericXML
+    #extractorOrder.GenericXML=99
+    
+  packs.xml: |-
+    
+    <PACKS>
+        <!--EDI_HC_PACKS_BEGIN-->
+        <PACK displayname="EDIFACT" name="EDIFACT" industry="EDI" package="com.ibm.spe.ui.edifact"/>
+        <PACK displayname="ASC X12/HIPAA" name="X12" industry="EDI" package="com.ibm.spe.ui.x12"/>
+        <PACK displayname="TRADACOMS" name="TRADACOMS" industry="EDI" package="com.ibm.spe.ui.tradacoms"/>
+        <PACK displayname="RND" name="RND" industry="AUTO" package="com.ibm.spe.ui.rnd"/>
+    
+        <INDUSTRY name="EDI" displayname="EDI"/>
+        <INDUSTRY name="AUTO" displayname="Automotive"/>
+        <MODULE name="Business Rules" enabled="true"/>
+    <!--EDI_HC_PACKS_END-->
+        <!-- This section is used to support Financial Services Payments pack -->
+        <!--FSP_PACK_BEGIN-->
+        <PACK displayname="ISO20022/SWIFT" name="SWIFT" industry="FINANCIAL" package="com.ibm.spe.ui.swift"/>
+    
+        <INDUSTRY name="FINANCIAL" displayname="Financial"/>
+        <!--FSP_PACK_END-->
+    
+    <!-- This section is used to support Generic XML processing. -->
+        <PACK displayname="Generic XML" name="GenericXML" industry="ANY" package="com.ibm.spe.ui.genericxml"/>
+        <INDUSTRY name="ANY" displayname="Any"/>
+    </PACKS>
+    
+  web.xml: |-
+    <?xml version="1.0" encoding="UTF-8"?>
+    <web-app id="WebApp_ID" version="3.0" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd">
+      <display-name>spe</display-name>
+      <servlet>
+        <servlet-name>myspe</servlet-name>
+        <servlet-class>com.ibm.spe.app.SPEServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+      </servlet>
+    <!-- This section is to update default password -->  
+      <servlet>
+        <servlet-name>updatepassword</servlet-name>
+        <servlet-class>com.ibm.spe.app.SPEUpdatePasswordServlet</servlet-class>
+        <load-on-startup>2</load-on-startup>
+      </servlet>
+      <servlet>
+        <servlet-name>svc</servlet-name>
+        <servlet-class>com.ibm.spe.svc.SPEWebServiceServlet</servlet-class>
+      </servlet>
+      <servlet>
+        <servlet-name>workbench</servlet-name>
+        <servlet-class>com.ibm.tenx.workbench.WorkbenchServlet</servlet-class>
+      </servlet>
+      <servlet-mapping>
+        <servlet-name>myspe</servlet-name>
+        <url-pattern>/myspe/*</url-pattern>
+      </servlet-mapping>
+      <servlet-mapping>
+        <servlet-name>workbench</servlet-name>
+        <url-pattern>/workbench/*</url-pattern>
+      </servlet-mapping>
+      <servlet-mapping>
+        <servlet-name>svc</servlet-name>
+        <url-pattern>/svc/*</url-pattern>
+      </servlet-mapping>
+      <listener>
+        <listener-class>com.ibm.spe.app.SPEListener</listener-class>
+      </listener>
+      <resource-ref>
+        <description>10x Connection Pool</description>
+        <res-ref-name>jdbc/tenx</res-ref-name>
+        <res-type>javax.sql.DataSource</res-type>
+        <res-auth>Container</res-auth>
+      </resource-ref>
+    </web-app>
+    
+  httpPort: "9080"
+  httpsPort: "9443"
+  dbType: "db2"
+  s3host: ""
+  s3bucket: ""
+  jdbcJar: ""

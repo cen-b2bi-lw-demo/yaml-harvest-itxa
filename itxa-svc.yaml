@@ -1,0 +1,37 @@
+# Source: ibm-itxa-prod/templates/itxa-appserver-service.yaml
+# Licensed Materials - Property of IBM
+# IBM Transformation Extender Advanced (5724-Q23)
+# (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.true
+
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: tools
+  name: release-name-ibm-itxa-prod-itxauiserver
+  labels:
+    app.kubernetes.io/name: "release-name-ibm-itxa-prod"
+    helm.sh/chart: "ibm-itxa-prod"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "release-name"
+    release: "release-name"
+spec:
+  type: NodePort
+  ports:
+    - port: 9080
+      targetPort: http
+      protocol: TCP
+      name: http
+      nodePort: 30089
+    - port: 9443
+      targetPort: https
+      protocol: TCP
+      name: https
+      nodePort: 30452
+  selector:
+    app.kubernetes.io/name: "release-name-ibm-itxa-prod"
+    helm.sh/chart: "ibm-itxa-prod"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "release-name"
+    release: "release-name"
+    role: "itxauiserver"

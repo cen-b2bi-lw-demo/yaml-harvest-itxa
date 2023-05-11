@@ -1,0 +1,86 @@
+# IBM Transformation Extender Advanced (5724-Q23)
+# (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.true
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: tools
+  name: "release-name-test-pv"
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    "openshift.io/scc": restricted    
+    productID: "ce7ff97070944e7a9888f0cd932df5d3"
+    productName: "IBM Transformation Extender Advanced Certified Container"
+    productVersion: "10.0.1"    
+  labels:
+    app.kubernetes.io/name: "release-name-ibm-itxa-prod"
+    helm.sh/chart: "ibm-itxa-prod"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "release-name"
+    release: "release-name"
+    type: "test-pv"
+spec:
+  affinity:    
+    #https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:        
+            - key: kubernetes.io/arch
+              operator: In
+              values:
+              - amd64
+              - ppc64le
+        preferredDuringSchedulingIgnoredDuringExecution:    
+        - weight: 2
+          preference:
+            matchExpressions:
+            - key: kubernetes.io/arch
+              operator: In
+              values:
+              - amd64
+        - weight: 2
+          preference:
+            matchExpressions:
+            - key: kubernetes.io/arch
+              operator: In
+              values:
+              - ppc64le
+  serviceAccountName: tools
+  hostNetwork: false
+  hostPID: false
+  hostIPC: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    fsGroup: 0
+  containers:
+  - name: release-name-ibm-itxa-prod-test-pv
+    image: "image-registry.openshift-image-registry.svc:5000/tools/itxa-ui-server-may_10@sha256:4360cd9723b4a8b4c9e66140217defd102b7a73ee816c19ded02cfd9c0160b02"
+    imagePullPolicy: Always
+    resources:
+      limits:
+        cpu: 2
+        memory: 3840Mi
+      requests:
+        cpu: 1
+        memory: 2560Mi
+    securityContext:
+      privileged: false
+      runAsUser: 1001
+      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    command: ["/bin/sh", "-c", "echo 'Testing write into Persistent Volume' | tee test-write-permission && echo 'write successful'"]
+    workingDir: "/logs"
+    volumeMounts:
+    - name: itxa-nfs-claim-common
+      mountPath: "/logs"
+  volumes:
+  - name: itxa-nfs-claim-common
+    persistentVolumeClaim:
+      claimName: itxa-nfs-claim
+  restartPolicy: Never

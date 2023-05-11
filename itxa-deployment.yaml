@@ -1,0 +1,233 @@
+# Source: ibm-itxa-prod/templates/itxa-appserver-deployment.yaml
+# Licensed Materials - Property of IBM
+# IBM Transformation Extender Advanced (5724-Q23)
+# (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.truetrue
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: tools
+  name: release-name-ibm-itxa-prod-itxauiserver
+  labels:
+    app.kubernetes.io/name: "release-name-ibm-itxa-prod"
+    helm.sh/chart: "ibm-itxa-prod"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "release-name"
+    release: "release-name"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "release-name-ibm-itxa-prod"
+      helm.sh/chart: "ibm-itxa-prod"
+      app.kubernetes.io/managed-by: "Helm"
+      app.kubernetes.io/instance: "release-name"
+      release: "release-name"
+      role: "itxauiserver"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "release-name-ibm-itxa-prod"
+        helm.sh/chart: "ibm-itxa-prod"
+        app.kubernetes.io/managed-by: "Helm"
+        app.kubernetes.io/instance: "release-name"
+        release: "release-name"
+        role: "itxauiserver"
+      annotations:        
+        productID: "ce7ff97070944e7a9888f0cd932df5d3"
+        productName: "IBM Transformation Extender Advanced Certified Container"
+        productVersion: "10.0.1"
+        productMetric: "VIRTUAL_PROCESSOR_CORE"
+        productChargedContainers: "All"
+    spec:
+      affinity:        
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:      
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - ppc64le
+          preferredDuringSchedulingIgnoredDuringExecution:  
+          - weight: 2
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+          - weight: 2
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - ppc64le        
+        podAffinity:        
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:    
+          preferredDuringSchedulingIgnoredDuringExecution:  
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:      
+                - key: role
+                  operator: In
+                  values:
+                  - itxauiserver
+              topologyKey: kubernetes.io/hostname  
+      serviceAccountName: tools
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 0
+      initContainers:
+      - name: release-name-ibm-itxa-prod-itxauiserver-init
+        image: >-
+            image-registry.openshift-image-registry.svc:5000/tools/itxa-ui-server-may_10@sha256:4360cd9723b4a8b4c9e66140217defd102b7a73ee816c19ded02cfd9c0160b02
+        securityContext:
+          privileged: false
+          runAsUser: 1001
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        command: ['/bin/bash', '-c']
+        args:
+        - 'while [ -z $(find /logs -name itxadatasetup.complete) ]; do echo "datasetup not complete $(date +%Y-%m-%d.%H.%M.%S)"; sleep 30; done; echo "datasetup found complete $(date +%Y-%m-%d.%H.%M.%S)"'
+        resources:
+          limits:
+            cpu: 2
+            memory: 3840Mi
+          requests:
+            cpu: 1
+            memory: 2560Mi        
+        volumeMounts:
+        - name: itxa-nfs-claim-common
+          mountPath: "/logs"
+      containers:
+      - name: release-name-ibm-itxa-prod-itxauiserver
+        image: >-
+            image-registry.openshift-image-registry.svc:5000/tools/itxa-ui-server-may_10@sha256:4360cd9723b4a8b4c9e66140217defd102b7a73ee816c19ded02cfd9c0160b02
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: false
+          runAsUser: 0
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL          
+        command: ["/bin/bash", "-c"]
+        args: 
+        - "/opt/IBM/spe/bin/update_dtx_ini.sh && . /opt/IBM/spe/bin/spesetup.sh && ls -lrt /config && /config/processcerts.sh importCertInLiberty && /config/itxaupdateconfigs.sh && /opt/ibm/helpers/runtime/docker-server.sh /opt/ibm/wlp/bin/server run defaultServer"
+        resources:
+          limits:
+            cpu: 2
+            memory: 3840Mi
+          requests:
+            cpu: 1
+            memory: 2560Mi
+        envFrom:
+        - configMapRef:
+            name: itxa-config
+        - secretRef:
+            name: itxa-secrets
+        - secretRef:
+            name: itxa-user-secret
+        env:
+        - name: APP_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP       
+        ports:
+        - name: https
+          containerPort: 9443
+          protocol: TCP
+        - name: http
+          containerPort: 9080
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /spe/myspe
+            port: 9080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          timeoutSeconds: 60
+          failureThreshold: 20
+        readinessProbe:
+          httpGet:
+            path: /spe/myspe
+            port: 9080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 20
+        volumeMounts:
+        - name: config
+          mountPath: "/home/default/jvm.options"
+          subPath: jvm.options
+        - name: config
+          mountPath: "/home/default/server1.xml"
+          subPath: itxa-ui-server.xml
+        - name: config
+          mountPath: "/home/default/dbprops.cfg"
+          subPath: dbprops.cfg
+        - name: config
+          mountPath: "/home/default/uiconfig.properties"
+          subPath: uiconfig.properties
+        - name: config
+          mountPath: "/home/default/customer_overrides.properties"
+          subPath: customer_overrides.properties
+        - name: config
+          mountPath: "/home/default/packs.properties"
+          subPath: packs.properties
+        - name: config
+          mountPath: "/home/default/packs.xml"
+          subPath: packs.xml
+        - name: config
+          mountPath: "/config/apps/spe.war/WEB-INF/web.xml"
+          subPath: web.xml
+          
+        - name: itxa-nfs-claim-common
+          mountPath: /logs   
+      volumes:
+      - name: config
+        configMap:
+          name: itxa-config
+          items:
+          - key: jvm.options
+            path: jvm.options
+          - key: itxa-ui-server.xml
+            path: itxa-ui-server.xml
+            mode: 0754
+          - key: dbprops.cfg
+            path: dbprops.cfg
+            mode: 0754
+          - key: uiconfig.properties
+            path: uiconfig.properties
+            mode: 0754
+          - key: customer_overrides.properties
+            path: customer_overrides.properties
+            mode: 0754
+          - key: packs.properties
+            path: packs.properties
+            mode: 0754
+          - key: packs.xml
+            path: packs.xml
+            mode: 0754
+          - key: web.xml
+            path: web.xml
+            mode: 0754  
+      - name: itxa-nfs-claim-common
+        persistentVolumeClaim:
+          claimName: itxa-nfs-claim    
